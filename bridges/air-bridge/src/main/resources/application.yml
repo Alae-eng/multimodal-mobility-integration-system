@@ -1,3 +1,4 @@
-spring:
-  main:
-    web-application-type: none   # temporaire (Lot 0) : pas encore d'API REST
+server:
+  port: 8091
+air:
+  url: ${AIR_URL:http://air:8080/ws}

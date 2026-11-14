@@ -23,6 +23,11 @@
   </properties>
 
   <dependencies>
+    <!-- API REST exposée (Tomcat + Spring MVC + Jackson) -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
     <!-- Contient WebServiceTemplate (client SOAP) -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
