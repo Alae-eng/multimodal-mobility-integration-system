@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- air-bridge : client SOAP (Spring WS) -> REST. Projet équipe, Membre A. -->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <version>3.2.5</version>
+    <relativePath/>
+  </parent>
+
+  <groupId>ma.mobility</groupId>
+  <artifactId>air-bridge</artifactId>
+  <version>0.1.0</version>
+  <packaging>jar</packaging>
+
+  <properties>
+    <java.version>17</java.version>
+    <jaxb.package>ma.mobility.airbridge.ws</jaxb.package>
+  </properties>
+
+  <dependencies>
+    <!-- Contient WebServiceTemplate (client SOAP) -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web-services</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.glassfish.jaxb</groupId>
+      <artifactId>jaxb-runtime</artifactId>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <finalName>air-bridge-${project.version}</finalName>
+    <plugins>
+      <!-- Classes JAXB générées depuis la COPIE locale du XSD -->
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>jaxb2-maven-plugin</artifactId>
+        <version>3.1.0</version>
+        <executions>
+          <execution>
+            <id>xjc-air</id>
+            <phase>generate-sources</phase>
+            <goals><goal>xjc</goal></goals>
+          </execution>
+        </executions>
+        <configuration>
+          <sources>
+            <source>src/main/resources/xsd/air.xsd</source>
+          </sources>
+          <packageName>${jaxb.package}</packageName>
+          <clearOutputDir>false</clearOutputDir>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-maven-plugin</artifactId>
+      </plugin>
+    </plugins>
+  </build>
+</project>

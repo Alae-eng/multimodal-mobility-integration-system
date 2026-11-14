@@ -1,0 +1,3 @@
+spring:
+  main:
+    web-application-type: none   # temporaire (Lot 0) : pas encore d'API REST
