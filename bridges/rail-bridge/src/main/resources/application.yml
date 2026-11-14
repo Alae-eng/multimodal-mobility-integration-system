@@ -1,0 +1,4 @@
+server:
+  port: 8090
+rail:
+  ior-file: ${RAIL_IOR_FILE:/work/ior/RailBooking.ior}

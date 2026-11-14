@@ -5,6 +5,13 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
+   <parent>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <version>3.2.5</version>
+    <relativePath/>
+  </parent>
+
   <groupId>ma.mobility</groupId>
   <artifactId>rail-bridge</artifactId>
   <version>0.1.0</version>
@@ -18,6 +25,10 @@
   </properties>
 
   <dependencies>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
     <!-- ORB JacORB + API OMG (fournit org.omg.* retiré du JDK depuis Java 11) -->
     <dependency>
       <groupId>org.jacorb</groupId>
@@ -109,31 +120,10 @@
         </executions>
       </plugin>
 
-      <!-- 3. Jar exécutable autonome (toutes dépendances incluses) -->
       <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-assembly-plugin</artifactId>
-        <version>3.7.1</version>
-        <configuration>
-          <descriptorRefs>
-            <descriptorRef>jar-with-dependencies</descriptorRef>
-          </descriptorRefs>
-          <archive>
-            <manifest>
-              <mainClass>ma.mobility.railbridge.SmokeTest</mainClass>
-            </manifest>
-          </archive>
-          <appendAssemblyId>true</appendAssemblyId>
-        </configuration>
-        <executions>
-          <execution>
-            <id>make-fatjar</id>
-            <phase>package</phase>
-            <goals><goal>single</goal></goals>
-          </execution>
-        </executions>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-maven-plugin</artifactId>
       </plugin>
-
     </plugins>
   </build>
 </project>
