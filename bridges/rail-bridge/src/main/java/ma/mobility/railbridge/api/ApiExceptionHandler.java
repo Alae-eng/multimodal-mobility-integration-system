@@ -1,5 +1,6 @@
 package ma.mobility.railbridge.api;
 
+import ma.mobility.railbridge.corba.OperatorRefusedException;
 import ma.mobility.railbridge.corba.RailUnavailableException;
 import org.omg.CORBA.SystemException;
 import org.springframework.http.HttpStatus;
@@ -10,10 +11,23 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice
 public class ApiExceptionHandler {
 
+    /** Refus métier (CORBA NotAvailable) -> 409 NOT_AVAILABLE. */
+    @ExceptionHandler(OperatorRefusedException.class)
+    public ResponseEntity<ErrorResponse> refused(OperatorRefusedException e) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(new ErrorResponse("NOT_AVAILABLE", e.getMessage()));
+    }
+
     /** Opérateur ferroviaire injoignable -> 503 UPSTREAM_UNAVAILABLE (contrat, section 3). */
     @ExceptionHandler({SystemException.class, RailUnavailableException.class})
     public ResponseEntity<ErrorResponse> upstreamDown(RuntimeException e) {
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
                 .body(new ErrorResponse("UPSTREAM_UNAVAILABLE", "Rail operator unreachable"));
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ErrorResponse> badRequest(IllegalArgumentException e) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new ErrorResponse("BAD_REQUEST", e.getMessage()));
     }
 }

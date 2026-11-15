@@ -1,5 +1,6 @@
 package ma.mobility.railbridge.corba;
 
+import mobility.rail.NotAvailable;
 import mobility.rail.RailBooking;
 import mobility.rail.RailBookingHelper;
 import mobility.rail.Trip;
@@ -27,6 +28,29 @@ public class RailClient {
 
     public List<Trip> search(String origin, String destination, String date) {
         return List.of(stub().search(origin, destination, date));
+    }
+
+    /** @return holdId */
+    public String hold(String tripId, int seats) {
+        try {
+            return stub().hold(tripId, seats);
+        } catch (NotAvailable e) {
+            throw new OperatorRefusedException(e.reason);
+        }
+    }
+
+    /** @return bookingRef */
+    public String confirm(String holdId) {
+        try {
+            return stub().confirm(holdId);
+        } catch (NotAvailable e) {
+            throw new OperatorRefusedException(e.reason);
+        }
+    }
+
+    /** Idempotent côté legacy : une référence inconnue n'est pas une erreur. */
+    public void cancel(String reference) {
+        stub().cancel(reference);
     }
 
     /** Initialisation paresseuse : le bridge peut démarrer avant que l'IOR existe. */
