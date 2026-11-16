@@ -1,0 +1,4 @@
+server:
+  port: 8091
+air:
+  url: ${AIR_URL:http://air:8080/ws}
