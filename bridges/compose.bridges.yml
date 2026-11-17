@@ -1,0 +1,25 @@
+# Fragment compose du Membre A : rail-bridge + air-bridge.
+# Inclus par le docker-compose.yml racine (include:). Les chemins sont relatifs à CE fichier.
+# Pas de depends_on : le fragment doit rester valide seul, et les bridges
+# tolèrent que rail/air démarrent après eux (connexion paresseuse).
+services:
+
+  rail-bridge:
+    build: ./rail-bridge
+    image: mobilite/rail-bridge:0.1.0
+    container_name: rail-bridge
+    environment:
+      RAIL_IOR_FILE: /ior/RailBooking.ior
+    ports:
+      - "8090:8090"
+    volumes:
+      - ../ior:/ior:ro       # IOR publié par le serveur ferroviaire
+
+  air-bridge:
+    build: ./air-bridge
+    image: mobilite/air-bridge:0.1.0
+    container_name: air-bridge
+    environment:
+      AIR_URL: http://air:8080/ws
+    ports:
+      - "8091:8091"
