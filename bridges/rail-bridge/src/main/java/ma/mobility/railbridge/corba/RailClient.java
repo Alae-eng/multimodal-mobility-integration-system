@@ -1,10 +1,14 @@
 package ma.mobility.railbridge.corba;
 
+import io.micrometer.observation.Observation;
+import io.micrometer.observation.ObservationRegistry;
 import mobility.rail.NotAvailable;
 import mobility.rail.RailBooking;
 import mobility.rail.RailBookingHelper;
 import mobility.rail.Trip;
 import org.omg.CORBA.ORB;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -13,44 +17,65 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Properties;
+import java.util.function.Supplier;
 
 /** Seul endroit qui parle CORBA à l'opérateur ferroviaire. */
 @Component
 public class RailClient {
 
+    private static final Logger log = LoggerFactory.getLogger(RailClient.class);
+
     private final String iorFile;
+    private final ObservationRegistry observations;
     private ORB orb;
     private RailBooking rail;
 
-    public RailClient(@Value("${rail.ior-file}") String iorFile) {
+    public RailClient(@Value("${rail.ior-file}") String iorFile, ObservationRegistry observations) {
         this.iorFile = iorFile;
+        this.observations = observations;
+    }
+
+    /** Un appel CORBA = un span dans la trace (le legacy, lui, ne propage rien). */
+    private <T> T traced(String operation, Supplier<T> call) {
+        log.info("CORBA call: {}", operation);
+        return Observation.createNotStarted("corba.rail." + operation, observations)
+                .lowCardinalityKeyValue("rpc.system", "corba")
+                .lowCardinalityKeyValue("rpc.method", operation)
+                .observe(call);
     }
 
     public List<Trip> search(String origin, String destination, String date) {
-        return List.of(stub().search(origin, destination, date));
+        return traced("search", () -> List.of(stub().search(origin, destination, date)));
     }
 
     /** @return holdId */
     public String hold(String tripId, int seats) {
-        try {
-            return stub().hold(tripId, seats);
-        } catch (NotAvailable e) {
-            throw new OperatorRefusedException(e.reason);
-        }
+        return traced("hold", () -> {
+            try {
+                return stub().hold(tripId, seats);
+            } catch (NotAvailable e) {
+                throw new OperatorRefusedException(e.reason);
+            }
+        });
     }
 
     /** @return bookingRef */
     public String confirm(String holdId) {
-        try {
-            return stub().confirm(holdId);
-        } catch (NotAvailable e) {
-            throw new OperatorRefusedException(e.reason);
-        }
+        return traced("confirm", () -> {
+            try {
+                return stub().confirm(holdId);
+            } catch (NotAvailable e) {
+                throw new OperatorRefusedException(e.reason);
+            }
+        });
     }
 
     /** Idempotent côté legacy : une référence inconnue n'est pas une erreur. */
     public void cancel(String reference) {
-        stub().cancel(reference);
+        traced("cancel", () -> {
+            stub().cancel(reference);
+            return null;
+        });
     }
 
     /** Initialisation paresseuse : le bridge peut démarrer avant que l'IOR existe. */
