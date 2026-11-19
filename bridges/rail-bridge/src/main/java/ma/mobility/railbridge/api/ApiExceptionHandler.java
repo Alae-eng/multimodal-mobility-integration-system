@@ -1,14 +1,15 @@
 package ma.mobility.railbridge.api;
 
+import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import ma.mobility.railbridge.corba.OperatorRefusedException;
 import ma.mobility.railbridge.corba.RailUnavailableException;
 import org.omg.CORBA.SystemException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
@@ -22,13 +23,21 @@ public class ApiExceptionHandler {
                 .body(new ErrorResponse("NOT_AVAILABLE", e.getMessage()));
     }
 
-    /** Opérateur ferroviaire injoignable -> 503 UPSTREAM_UNAVAILABLE (contrat, section 3). */
+    /** Opérateur ferroviaire injoignable -> 503 UPSTREAM_UNAVAILABLE. */
     @ExceptionHandler({SystemException.class, RailUnavailableException.class})
     public ResponseEntity<ErrorResponse> upstreamDown(RuntimeException e) {
         // La cause réelle doit rester visible : le client, lui, ne voit qu'un 503 générique
         log.warn("UPSTREAM_UNAVAILABLE : {} (cause: {})", e, e.getCause() == null ? "-" : e.getCause().toString());
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
                 .body(new ErrorResponse("UPSTREAM_UNAVAILABLE", "Rail operator unreachable"));
+    }
+
+    /** Circuit ouvert : on échoue tout de suite, sans appeler l'opérateur. */
+    @ExceptionHandler(CallNotPermittedException.class)
+    public ResponseEntity<ErrorResponse> circuitOpen(CallNotPermittedException e) {
+        log.warn("UPSTREAM_UNAVAILABLE : circuit breaker ouvert ({})", e.getMessage());
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(new ErrorResponse("UPSTREAM_UNAVAILABLE", "Rail operator circuit open"));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

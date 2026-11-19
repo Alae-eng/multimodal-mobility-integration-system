@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- rail-bridge : client CORBA (JacORB). Projet équipe, Membre A. -->
+<!-- rail-bridge : client CORBA (JacORB) -> REST. Projet équipe, Membre A. -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
-   <parent>
+  <parent>
     <groupId>org.springframework.boot</groupId>
     <artifactId>spring-boot-starter-parent</artifactId>
     <version>3.2.5</version>
@@ -18,8 +18,7 @@
   <packaging>jar</packaging>
 
   <properties>
-    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <maven.compiler.release>17</maven.compiler.release>
+    <java.version>17</java.version>
     <jacorb.version>3.9</jacorb.version>
     <idl.out>${project.build.directory}/generated-sources/idl</idl.out>
   </properties>
@@ -43,8 +42,19 @@
       <groupId>io.opentelemetry</groupId>
       <artifactId>opentelemetry-exporter-otlp</artifactId>
     </dependency>
-    
-    <!-- ORB JacORB + API OMG (fournit org.omg.* retiré du JDK depuis Java 11) -->
+
+    <!-- Circuit breaker (Resilience4j) -->
+    <dependency>
+      <groupId>io.github.resilience4j</groupId>
+      <artifactId>resilience4j-spring-boot3</artifactId>
+      <version>2.2.0</version>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-aop</artifactId>
+    </dependency>
+
+    <!-- ORB JacORB + API OMG (org.omg.* retiré du JDK depuis Java 11) -->
     <dependency>
       <groupId>org.jacorb</groupId>
       <artifactId>jacorb</artifactId>
@@ -55,12 +65,12 @@
       <artifactId>jacorb-omgapi</artifactId>
       <version>${jacorb.version}</version>
     </dependency>
-    <!-- Compilateur IDL JacORB : utilisé uniquement au build (scope provided) -->
     <dependency>
       <groupId>org.jacorb</groupId>
       <artifactId>jacorb-idl-compiler</artifactId>
       <version>${jacorb.version}</version>
     </dependency>
+    <!-- javax.rmi.CORBA.Stub, requis par JacORB côté client -->
     <dependency>
       <groupId>org.jboss.spec.javax.rmi</groupId>
       <artifactId>jboss-rmi-api_1.0_spec</artifactId>
@@ -71,8 +81,6 @@
   <build>
     <finalName>rail-bridge-${project.version}</finalName>
     <plugins>
-
-      <!-- 0. Création du dossier de sortie des sources générées -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-antrun-plugin</artifactId>
@@ -89,10 +97,7 @@
         </executions>
       </plugin>
 
-      <!-- 1. Génération des stubs/skeletons à partir de l'IDL.
-           Exécuté dans un PROCESSUS SÉPARÉ (exec:exec) : le compilateur IDL
-           de JacORB appelle System.exit(), ce qui tuerait la JVM Maven si on
-           utilisait exec:java. -->
+      <!-- Compilation de l'IDL (processus séparé : le compilateur appelle System.exit) -->
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>exec-maven-plugin</artifactId>
@@ -118,7 +123,6 @@
         </executions>
       </plugin>
 
-      <!-- 2. Déclaration du dossier généré comme racine de sources -->
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>build-helper-maven-plugin</artifactId>
