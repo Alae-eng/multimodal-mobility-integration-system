@@ -1,4 +1,19 @@
+spring:
+  application:
+    name: air-bridge
 server:
   port: 8091
 air:
   url: ${AIR_URL:http://air:8080/ws}
+
+# Traçabilité : le traceId (W3C traceparent) apparaît dans chaque ligne de log
+logging:
+  pattern:
+    level: "%5p [${spring.application.name},%X{traceId:-},%X{spanId:-}]"
+management:
+  tracing:
+    sampling:
+      probability: 1.0
+  otlp:
+    tracing:
+      endpoint: ${OTLP_TRACES_ENDPOINT:http://otel-collector:4318/v1/traces}
