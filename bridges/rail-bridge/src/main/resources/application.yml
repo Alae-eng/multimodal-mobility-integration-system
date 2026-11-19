@@ -1,4 +1,19 @@
+spring:
+  application:
+    name: rail-bridge
 server:
   port: 8090
 rail:
   ior-file: ${RAIL_IOR_FILE:/work/ior/RailBooking.ior}
+
+# Traçabilité : le traceId (W3C traceparent) apparaît dans chaque ligne de log
+logging:
+  pattern:
+    level: "%5p [${spring.application.name},%X{traceId:-},%X{spanId:-}]"
+management:
+  tracing:
+    sampling:
+      probability: 1.0
+  otlp:
+    tracing:
+      endpoint: ${OTLP_TRACES_ENDPOINT:http://otel-collector:4318/v1/traces}
