@@ -1,5 +1,7 @@
 package ma.mobility.railbridge.corba;
 
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.micrometer.observation.Observation;
 import io.micrometer.observation.ObservationRegistry;
 import mobility.rail.NotAvailable;
@@ -38,18 +40,22 @@ public class RailClient {
     private ORB orb;
     private RailBooking rail;
 
-    public RailClient(@Value("${rail.ior-file}") String iorFile, ObservationRegistry observations) {
+    private final CircuitBreaker breaker;
+
+    public RailClient(@Value("${rail.ior-file}") String iorFile, ObservationRegistry observations,
+                      CircuitBreakerRegistry breakers) {
         this.iorFile = iorFile;
         this.observations = observations;
+        this.breaker = breakers.circuitBreaker("rail");
     }
 
-    /** Un appel CORBA = un span dans la trace (le legacy, lui, ne propage rien). */
+    /** Un appel CORBA = un span dans la trace, protégé par le circuit breaker "rail". */
     private <T> T traced(String operation, Supplier<T> call) {
         log.info("CORBA call: {}", operation);
         return Observation.createNotStarted("corba.rail." + operation, observations)
                 .lowCardinalityKeyValue("rpc.system", "corba")
                 .lowCardinalityKeyValue("rpc.method", operation)
-                .observe(call);
+                .observe(() -> breaker.executeSupplier(call::get));
     }
 
     public List<Trip> search(String origin, String destination, String date) {

@@ -17,3 +17,29 @@ management:
   otlp:
     tracing:
       endpoint: ${OTLP_TRACES_ENDPOINT:http://otel-collector:4318/v1/traces}
+  health:
+    circuitbreakers:
+      enabled: true
+  endpoint:
+    health:
+      show-details: always
+
+# Circuit breaker : s'ouvre si >= 50 % d'échecs TECHNIQUES sur 10 appels (min. 5).
+# Un refus métier (409) n'est jamais compté comme un échec.
+resilience4j:
+  circuitbreaker:
+    instances:
+      rail:
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 2
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        registerHealthIndicator: true
+        recordExceptions:
+          - org.omg.CORBA.SystemException
+          - ma.mobility.railbridge.corba.RailUnavailableException
+        ignoreExceptions:
+          - ma.mobility.railbridge.corba.OperatorRefusedException
