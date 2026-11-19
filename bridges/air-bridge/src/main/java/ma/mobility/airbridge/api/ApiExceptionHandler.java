@@ -2,6 +2,8 @@ package ma.mobility.airbridge.api;
 
 import ma.mobility.airbridge.soap.OperatorRefusedException;
 import ma.mobility.airbridge.soap.UpstreamFailureException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -10,6 +12,8 @@ import org.springframework.ws.client.WebServiceIOException;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(ApiExceptionHandler.class);
 
     /** Refus métier (SOAP Fault) -> 409 NOT_AVAILABLE. */
     @ExceptionHandler(OperatorRefusedException.class)
@@ -21,6 +25,8 @@ public class ApiExceptionHandler {
     /** Partenaire aérien injoignable -> 503 UPSTREAM_UNAVAILABLE (contrat, section 3). */
     @ExceptionHandler(WebServiceIOException.class)
     public ResponseEntity<ErrorResponse> upstreamDown(WebServiceIOException e) {
+        // La cause réelle doit rester visible : le client, lui, ne voit qu'un 503 générique
+        log.warn("UPSTREAM_UNAVAILABLE : {} (cause: {})", e, e.getCause() == null ? "-" : e.getCause().toString());
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
                 .body(new ErrorResponse("UPSTREAM_UNAVAILABLE", "Air partner unreachable"));
     }

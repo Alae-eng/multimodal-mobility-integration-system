@@ -5,6 +5,8 @@ server:
   port: 8091
 air:
   url: ${AIR_URL:http://air:8080/ws}
+  connect-timeout-ms: 3000   # même ordre de grandeur que le rail-bridge
+  read-timeout-ms: 5000
 
 # Traçabilité : le traceId (W3C traceparent) apparaît dans chaque ligne de log
 logging:
