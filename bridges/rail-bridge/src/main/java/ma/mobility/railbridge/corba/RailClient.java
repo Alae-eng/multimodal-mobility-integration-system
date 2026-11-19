@@ -6,7 +6,9 @@ import mobility.rail.NotAvailable;
 import mobility.rail.RailBooking;
 import mobility.rail.RailBookingHelper;
 import mobility.rail.Trip;
+import org.omg.CORBA.CompletionStatus;
 import org.omg.CORBA.ORB;
+import org.omg.CORBA.SystemException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -24,6 +26,12 @@ import java.util.function.Supplier;
 public class RailClient {
 
     private static final Logger log = LoggerFactory.getLogger(RailClient.class);
+
+    /** Appel CORBA pouvant lever le refus métier NotAvailable. */
+    @FunctionalInterface
+    private interface CorbaCall<T> {
+        T apply(RailBooking rail) throws NotAvailable;
+    }
 
     private final String iorFile;
     private final ObservationRegistry observations;
@@ -45,50 +53,78 @@ public class RailClient {
     }
 
     public List<Trip> search(String origin, String destination, String date) {
-        return traced("search", () -> List.of(stub().search(origin, destination, date)));
+        return traced("search", () -> invoke(true, r -> List.of(r.search(origin, destination, date))));
     }
 
-    /** @return holdId */
+    /** @return holdId. Non idempotent : rejoué seulement si la requête n'a pas été exécutée. */
     public String hold(String tripId, int seats) {
-        return traced("hold", () -> {
-            try {
-                return stub().hold(tripId, seats);
-            } catch (NotAvailable e) {
-                throw new OperatorRefusedException(e.reason);
-            }
-        });
+        return traced("hold", () -> invoke(false, r -> r.hold(tripId, seats)));
     }
 
-    /** @return bookingRef */
+    /** @return bookingRef. Non idempotent (le legacy consomme le hold). */
     public String confirm(String holdId) {
-        return traced("confirm", () -> {
-            try {
-                return stub().confirm(holdId);
-            } catch (NotAvailable e) {
-                throw new OperatorRefusedException(e.reason);
-            }
-        });
+        return traced("confirm", () -> invoke(false, r -> r.confirm(holdId)));
     }
 
     /** Idempotent côté legacy : une référence inconnue n'est pas une erreur. */
     public void cancel(String reference) {
-        traced("cancel", () -> {
-            stub().cancel(reference);
+        traced("cancel", () -> invoke(true, r -> {
+            r.cancel(reference);
             return null;
-        });
+        }));
+    }
+
+    /**
+     * Exécute l'appel ; sur erreur technique CORBA, oublie la référence (l'IOR a pu changer
+     * si le serveur a redémarré) puis réessaie UNE fois si c'est sans danger.
+     */
+    private <T> T invoke(boolean idempotent, CorbaCall<T> call) {
+        try {
+            return attempt(call);
+        } catch (SystemException first) {
+            reset();
+            boolean safeToRetry = idempotent || first.completed == CompletionStatus.COMPLETED_NO;
+            if (!safeToRetry) {
+                log.warn("CORBA {} (completed={}) : pas de nouvel essai, risque de doublon",
+                        first.getClass().getSimpleName(), first.completed);
+                throw first;
+            }
+            log.warn("CORBA {} : nouvel essai après relecture de l'IOR", first.getClass().getSimpleName());
+            try {
+                return attempt(call);
+            } catch (SystemException second) {
+                reset();
+                throw second;
+            }
+        }
+    }
+
+    private <T> T attempt(CorbaCall<T> call) {
+        try {
+            return call.apply(stub());
+        } catch (NotAvailable e) {
+            throw new OperatorRefusedException(e.reason);
+        }
+    }
+
+    /** Oublie la référence : le prochain appel relira l'IOR depuis le fichier. */
+    private synchronized void reset() {
+        rail = null;
     }
 
     /** Initialisation paresseuse : le bridge peut démarrer avant que l'IOR existe. */
     private synchronized RailBooking stub() {
         if (rail == null) {
             try {
-                Properties props = new Properties();
-                props.setProperty("org.omg.CORBA.ORBClass", "org.jacorb.orb.ORB");
-                props.setProperty("org.omg.CORBA.ORBSingletonClass", "org.jacorb.orb.ORBSingleton");
-                // Délais (ms) : sans eux, un serveur mort bloque les threads indéfiniment
-                props.setProperty("jacorb.connection.client.connect_timeout", "3000");
-                props.setProperty("jacorb.connection.client.pending_reply_timeout", "5000");
-                orb = ORB.init(new String[0], props);
+                if (orb == null) {
+                    Properties props = new Properties();
+                    props.setProperty("org.omg.CORBA.ORBClass", "org.jacorb.orb.ORB");
+                    props.setProperty("org.omg.CORBA.ORBSingletonClass", "org.jacorb.orb.ORBSingleton");
+                    // Délais (ms) : sans eux, un serveur mort bloque les threads indéfiniment
+                    props.setProperty("jacorb.connection.client.connect_timeout", "3000");
+                    props.setProperty("jacorb.connection.client.pending_reply_timeout", "5000");
+                    orb = ORB.init(new String[0], props);
+                }
                 String ior = Files.readString(Path.of(iorFile)).trim();
                 rail = RailBookingHelper.narrow(orb.string_to_object(ior));
             } catch (IOException e) {
