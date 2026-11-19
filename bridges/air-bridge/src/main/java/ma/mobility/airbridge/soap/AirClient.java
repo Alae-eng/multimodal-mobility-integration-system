@@ -1,6 +1,8 @@
 package ma.mobility.airbridge.soap;
 
 import io.micrometer.observation.Observation;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.micrometer.observation.ObservationRegistry;
 import ma.mobility.airbridge.ws.CancelFlightRequest;
 import ma.mobility.airbridge.ws.ConfirmFlightRequest;
@@ -30,18 +32,22 @@ public class AirClient {
     private final ObservationRegistry observations;
     private final ObjectFactory factory = new ObjectFactory();
 
-    public AirClient(WebServiceTemplate template, ObservationRegistry observations) {
+    private final CircuitBreaker breaker;
+
+    public AirClient(WebServiceTemplate template, ObservationRegistry observations,
+                     CircuitBreakerRegistry breakers) {
         this.template = template;
         this.observations = observations;
+        this.breaker = breakers.circuitBreaker("air");
     }
 
-    /** Un appel SOAP = un span dans la trace (le legacy, lui, ne propage rien). */
+    /** Un appel SOAP = un span dans la trace, protégé par le circuit breaker "air". */
     private <T> T traced(String operation, Supplier<T> call) {
         log.info("SOAP call: {}", operation);
         return Observation.createNotStarted("soap.air." + operation, observations)
                 .lowCardinalityKeyValue("rpc.system", "soap")
                 .lowCardinalityKeyValue("rpc.method", operation)
-                .observe(call);
+                .observe(() -> breaker.executeSupplier(call::get));
     }
 
     public List<Flight> searchFlights(String origin, String destination, String date) {
