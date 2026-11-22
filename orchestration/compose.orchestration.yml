@@ -1,0 +1,20 @@
+# Member C orchestration service.
+# Paths are relative to this file and the service joins the shared mobilite-net network.
+services:
+  saga-orchestrator:
+    build: ./saga-orchestrator
+    image: mobilite/saga-orchestrator:1.0.0
+    container_name: saga-orchestrator
+    environment:
+      RAIL_BASE_URL: http://rail-bridge:8090
+      AIR_BASE_URL: http://air-bridge:8091
+      CARSHARING_BASE_URL: http://carsharing:8080
+    ports:
+      - "8096:8096"
+    depends_on:
+      rail-bridge:
+        condition: service_started
+      air-bridge:
+        condition: service_started
+      carsharing:
+        condition: service_started

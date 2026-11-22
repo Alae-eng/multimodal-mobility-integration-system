@@ -8,6 +8,12 @@
 #
 #  Encadrement : Pr. Mahmoud NASSAR
 # =====================================================================
+include:
+  - path: ./bridges/compose.bridges.yml
+  - path: ./services/compose.services.yml
+  - path: ./orchestration/compose.orchestration.yml
+  - path: ./gateway/compose.gateway.yml
+
 services:
 
   # --- Opérateur ferroviaire : serveur CORBA (JacORB) ---
