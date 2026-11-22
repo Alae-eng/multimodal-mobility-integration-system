@@ -1,0 +1,208 @@
+# Internal microservices of the platform (Member B).
+# Loaded by the root docker-compose.yml through "include", so `docker compose up --build`
+# from the repository root starts everything on the shared network mobilite-net.
+services:
+
+  # --- RabbitMQ: one broker shared by all platform services ---
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: mobilite-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"        # management UI (guest / guest)
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # --- Jaeger: receives the OpenTelemetry traces (OTLP) and shows them in a UI ---
+  jaeger:
+    image: jaegertracing/all-in-one:1.76.0
+    container_name: mobilite-jaeger
+    ports:
+      - "16686:16686"        # trace UI: http://localhost:16686
+    # OTLP/HTTP (4318) is reachable by the services as http://jaeger:4318
+
+  # --- Carsharing: own PostgreSQL database ---
+  carsharing-db:
+    image: postgres:16-alpine
+    container_name: carsharing-db
+    environment:
+      POSTGRES_DB: carsharing
+      POSTGRES_USER: carsharing
+      POSTGRES_PASSWORD: carsharing
+    volumes:
+      - carsharing-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U carsharing -d carsharing"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # --- Carsharing service (third operator next to rail and air) ---
+  carsharing:
+    build: ./carsharing
+    image: mobilite/carsharing:0.0.1
+    container_name: carsharing
+    depends_on:
+      carsharing-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      jaeger:
+        condition: service_started
+    environment:
+      DB_URL: jdbc:postgresql://carsharing-db:5432/carsharing
+      DB_USER: carsharing
+      DB_PASSWORD: carsharing
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: "5672"
+      RABBITMQ_USER: guest
+      RABBITMQ_PASSWORD: guest
+      OTEL_TRACES_ENDPOINT: http://jaeger:4318/v1/traces
+    ports:
+      - "8092:8080"          # host port 8092 (contracts/operator-port.md)
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:8080/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
+  # --- Pricing: own PostgreSQL database ---
+  pricing-db:
+    image: postgres:16-alpine
+    container_name: pricing-db
+    environment:
+      POSTGRES_DB: pricing
+      POSTGRES_USER: pricing
+      POSTGRES_PASSWORD: pricing
+    volumes:
+      - pricing-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pricing -d pricing"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # --- Pricing service: total price of a multimodal trip ---
+  pricing:
+    build: ./pricing
+    image: mobilite/pricing:0.0.1
+    container_name: pricing
+    depends_on:
+      pricing-db:
+        condition: service_healthy
+      jaeger:
+        condition: service_started
+    environment:
+      DB_URL: jdbc:postgresql://pricing-db:5432/pricing
+      DB_USER: pricing
+      DB_PASSWORD: pricing
+      OTEL_TRACES_ENDPOINT: http://jaeger:4318/v1/traces
+    ports:
+      - "8093:8080"          # http://localhost:8093/v1/quotes
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:8080/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
+  # --- Bookings: own PostgreSQL database ---
+  bookings-db:
+    image: postgres:16-alpine
+    container_name: bookings-db
+    environment:
+      POSTGRES_DB: bookings
+      POSTGRES_USER: bookings
+      POSTGRES_PASSWORD: bookings
+    volumes:
+      - bookings-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bookings -d bookings"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # --- Bookings service: the consolidated travel file ---
+  bookings:
+    build: ./bookings
+    image: mobilite/bookings:0.0.1
+    container_name: bookings
+    depends_on:
+      bookings-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://bookings-db:5432/bookings
+      DB_USER: bookings
+      DB_PASSWORD: bookings
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: "5672"
+      RABBITMQ_USER: guest
+      RABBITMQ_PASSWORD: guest
+    ports:
+      - "8094:8080"          # http://localhost:8094/v1/bookings
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:8080/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
+  # --- Notifications: own PostgreSQL database ---
+  notifications-db:
+    image: postgres:16-alpine
+    container_name: notifications-db
+    environment:
+      POSTGRES_DB: notifications
+      POSTGRES_USER: notifications
+      POSTGRES_PASSWORD: notifications
+    volumes:
+      - notifications-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U notifications -d notifications"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # --- Notifications service: tells the traveler what happened (consumes the trip events) ---
+  notifications:
+    build: ./notifications
+    image: mobilite/notifications:0.0.1
+    container_name: notifications
+    depends_on:
+      notifications-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://notifications-db:5432/notifications
+      DB_USER: notifications
+      DB_PASSWORD: notifications
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: "5672"
+      RABBITMQ_USER: guest
+      RABBITMQ_PASSWORD: guest
+    ports:
+      - "8095:8080"          # http://localhost:8095/v1/notifications?travelerId=...
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:8080/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
+volumes:
+  carsharing-db-data:
+  pricing-db-data:
+  bookings-db-data:
+  notifications-db-data:
+
+networks:
+  default:
+    name: mobilite-net
