@@ -1,0 +1,5 @@
+@gateway = http://localhost:8080
+
+### Search all real operators through the API gateway
+GET {{gateway}}/api/v1/search?origin=Casablanca&destination=Rabat&date=2026-11-15
+traceparent: 00-11111111111111111111111111111111-2222222222222222-01

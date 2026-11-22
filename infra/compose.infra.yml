@@ -1,0 +1,36 @@
+# Shared infrastructure for Member C and the distributed services.
+services:
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: mobilite-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.76.0
+    container_name: mobilite-jaeger
+    ports:
+      - "16686:16686"
+      - "4317:4317"
+      - "4318:4318"
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.111.0
+    container_name: mobilite-otel-collector
+    command: ["--config=/etc/otel/otel-collector.yml"]
+    volumes:
+      - ./otel/otel-collector.yml:/etc/otel/otel-collector.yml:ro
+    ports:
+      - "4319:4318"
+    depends_on:
+      jaeger:
+        condition: service_started

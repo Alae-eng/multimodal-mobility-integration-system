@@ -1,0 +1,22 @@
+# Member C API gateway.
+services:
+  api-gateway:
+    build: ./api-gateway
+    image: mobilite/api-gateway:1.0.0
+    container_name: api-gateway
+    environment:
+      SAGA_URL: http://saga-orchestrator:8096
+      PRICING_URL: http://pricing:8080
+      BOOKINGS_URL: http://bookings:8080
+      NOTIFICATIONS_URL: http://notifications:8080
+    ports:
+      - "8080:8080"
+    depends_on:
+      saga-orchestrator:
+        condition: service_started
+      pricing:
+        condition: service_started
+      bookings:
+        condition: service_started
+      notifications:
+        condition: service_started
