@@ -76,14 +76,7 @@ idempotence, erreurs) sont décrits dans **`docs/02-contrats.md`** et
 > dans *votre* couche d'intégration. Si vous ressentez le besoin de les changer,
 > c'est le signe qu'un bridge ou une transformation manque de votre côté.
 
-## Member C services
 
-- API gateway: `http://localhost:8080`
-- Saga orchestrator: `http://localhost:8096`
-- Jaeger UI: `http://localhost:16686`
-- RabbitMQ management: `http://localhost:15672`
-
-Replayable HTTP demonstrations are in [`demo/`](./demo/).
 
 ## Jeu de données
 
