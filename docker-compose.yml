@@ -9,6 +9,7 @@
 #  Encadrement : Pr. Mahmoud NASSAR
 # =====================================================================
 include:
+  - path: ./infra/compose.infra.yml
   - path: ./bridges/compose.bridges.yml
   - path: ./services/compose.services.yml
   - path: ./orchestration/compose.orchestration.yml

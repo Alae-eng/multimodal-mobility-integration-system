@@ -3,28 +3,6 @@
 # from the repository root starts everything on the shared network mobilite-net.
 services:
 
-  # --- RabbitMQ: one broker shared by all platform services ---
-  rabbitmq:
-    image: rabbitmq:3.13-management
-    container_name: mobilite-rabbitmq
-    ports:
-      - "5672:5672"
-      - "15672:15672"        # management UI (guest / guest)
-    healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
-
-  # --- Jaeger: receives the OpenTelemetry traces (OTLP) and shows them in a UI ---
-  jaeger:
-    image: jaegertracing/all-in-one:1.76.0
-    container_name: mobilite-jaeger
-    ports:
-      - "16686:16686"        # trace UI: http://localhost:16686
-    # OTLP/HTTP (4318) is reachable by the services as http://jaeger:4318
-
   # --- Carsharing: own PostgreSQL database ---
   carsharing-db:
     image: postgres:16-alpine
