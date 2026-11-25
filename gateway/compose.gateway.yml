@@ -9,6 +9,9 @@ services:
       PRICING_URL: http://pricing:8080
       BOOKINGS_URL: http://bookings:8080
       NOTIFICATIONS_URL: http://notifications:8080
+      GATEWAY_AUTH_USERNAME: "${GATEWAY_AUTH_USERNAME:?Set GATEWAY_AUTH_USERNAME}"
+      GATEWAY_AUTH_PASSWORD: "${GATEWAY_AUTH_PASSWORD:?Set GATEWAY_AUTH_PASSWORD}"
+      GATEWAY_AUTH_JWT_SECRET: "${GATEWAY_AUTH_JWT_SECRET:?Set GATEWAY_AUTH_JWT_SECRET to at least 32 characters}"
     ports:
       - "8080:8080"
     depends_on:
