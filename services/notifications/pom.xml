@@ -14,7 +14,7 @@
 	<name>notifications</name>
 	<description>Notifications: tells the traveler that a booking was confirmed, cancelled or failed, by reacting to the platform events (RabbitMQ consumer, own PostgreSQL database)</description>
 	<properties>
-		<java.version>21</java.version>
+		<java.version>17</java.version>
 	</properties>
 	<dependencies>
 		<dependency>

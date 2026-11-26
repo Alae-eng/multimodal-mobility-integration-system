@@ -14,7 +14,7 @@
 	<name>pricing</name>
 	<description>Pricing: computes the total price of a multimodal trip from the operators' offers (REST, own PostgreSQL database)</description>
 	<properties>
-		<java.version>21</java.version>
+		<java.version>17</java.version>
 	</properties>
 	<dependencies>
 		<dependency>

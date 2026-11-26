@@ -14,7 +14,7 @@
 	<name>carsharing</name>
 	<description>Carsharing operator: third operator of the multimodal mobility platform (REST, own PostgreSQL database)</description>
 	<properties>
-		<java.version>21</java.version>
+		<java.version>17</java.version>
 	</properties>
 	<dependencies>
 		<dependency>
