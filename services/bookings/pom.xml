@@ -14,7 +14,7 @@
 	<name>bookings</name>
 	<description>Bookings: stores the consolidated travel file (train, flight and car references) and announces it on the event bus (REST, own PostgreSQL database)</description>
 	<properties>
-		<java.version>21</java.version>
+		<java.version>17</java.version>
 	</properties>
 	<dependencies>
 		<dependency>
